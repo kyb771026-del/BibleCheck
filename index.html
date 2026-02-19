@@ -76,8 +76,12 @@
       </div>
       <div class="chapter-quick">
         <div class="verse-input-wrap">
-          <label for="verseInput">읽은 절 (선택, 예: 1-5)</label>
-          <input type="text" id="verseInput" placeholder="1-5" maxlength="20" />
+          <label>읽은 절 선택</label>
+          <div class="verse-select-row">
+            <select id="verseStart" aria-label="시작 절"></select>
+            <span class="verse-sep">~</span>
+            <select id="verseEnd" aria-label="끝 절"></select>
+          </div>
         </div>
         <button class="btn-range" data-action="check-all">전체 읽음</button>
         <button class="btn-range" data-action="uncheck-all">전체 초기화</button>
@@ -85,6 +89,10 @@
       <div class="chapters-grid" id="chaptersGrid"></div>
     </div>
   </div>
+
+  <!-- Firebase (Realtime Database) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
 
   <script src="script.js"></script>
 </body>

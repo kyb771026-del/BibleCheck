@@ -74,24 +74,89 @@ const BIBLE_BOOKS = {
 
 const TOTAL_CHAPTERS = 1189;
 
-// 화면을 새로고침하면 진도는 초기화되며,
-// 브라우저나 로컬 저장소에 따로 저장하지 않습니다.
+// 로컬 스토리지/세션 스토리지 사용하지 않음.
+// 체크 데이터는 Firebase Realtime Database에 저장/로드합니다.
 let progress = {};
 let currentBook = null;
+
+// Firebase 설정
+const firebaseConfig = {
+  apiKey: "AIzaSyAGWMSOU6hlNNIZC1rCagaXF3H5nUymT1M",
+  authDomain: "biblecheck-7f0f4.firebaseapp.com",
+  databaseURL: "https://biblecheck-7f0f4-default-rtdb.firebaseio.com",
+  projectId: "biblecheck-7f0f4",
+  storageBucket: "biblecheck-7f0f4.firebasestorage.app",
+  messagingSenderId: "711252124347",
+  appId: "1:711252124347:web:f101b43f29ecd0081cff9e",
+  measurementId: "G-CNVK1696SF"
+};
+
+// 단일 사용자/디바이스용 기본 경로(원하면 이후 사용자별로 분리 가능)
+const READER_ID = "default";
+
+let db = null;
+
+function initFirebase() {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+}
 
 // 오늘 날짜 YYYY-MM-DD
 function getTodayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-// 메모리 상의 데이터만 사용하므로 저장은 화면 갱신만 수행
-function saveProgress() {
-  updateUI();
+function getChapterPath(testament, bookIdx, chapter, verseKey) {
+  const v = verseKey || "";
+  return `reads/${READER_ID}/${testament}/${bookIdx}/${chapter}/${v}`;
 }
 
-// 초기 로딩용 (현재는 별도 동작 없음)
+// Firebase → 메모리 progress로 동기화
 function loadProgress() {
   progress = {};
+  const rootRef = db.ref(`reads/${READER_ID}`);
+  rootRef.on("value", (snap) => {
+    const data = snap.val() || {};
+    const next = {};
+
+    Object.keys(data).forEach((testament) => {
+      const byBook = data[testament] || {};
+      Object.keys(byBook).forEach((bookIdxStr) => {
+        const byChapter = byBook[bookIdxStr] || {};
+        const bookIdx = parseInt(bookIdxStr, 10);
+        const key = getBookKey(testament, bookIdx);
+        next[key] = [];
+
+        Object.keys(byChapter).forEach((chapterStr) => {
+          const byVerseKey = byChapter[chapterStr] || {};
+          const chapter = parseInt(chapterStr, 10);
+          Object.keys(byVerseKey).forEach((verseKey) => {
+            const item = byVerseKey[verseKey] || {};
+            next[key].push({
+              c: chapter,
+              d: item.d || "",
+              t: item.t || 0,
+              v: verseKey || "",
+            });
+          });
+        });
+      });
+    });
+
+    Object.keys(next).forEach((k) => next[k].sort((a, b) => a.c - b.c));
+    progress = next;
+    updateUI();
+  });
+}
+
+function saveChapterToFirebase(testament, bookIdx, chapter, verseKey) {
+  const path = getChapterPath(testament, bookIdx, chapter, verseKey);
+  return db.ref(path).set({ d: getTodayStr(), t: Date.now() });
+}
+
+function removeChapterFromFirebase(testament, bookIdx, chapter, verseKey) {
+  const path = getChapterPath(testament, bookIdx, chapter, verseKey);
+  return db.ref(path).remove();
 }
 
 // 책 키 생성
@@ -99,16 +164,23 @@ function getBookKey(testament, index) {
   return `${testament}-${index}`;
 }
 
-// 장 읽음 토글 (verse: 선택적 절 입력, 예: "1-5" 또는 "10")
-function toggleChapter(testament, bookIdx, chapter, verse) {
+// 장/절 체크 토글 (verseKey: "1" or "1-5" or "")
+function toggleChapter(testament, bookIdx, chapter, verseKey) {
   const key = getBookKey(testament, bookIdx);
   if (!progress[key]) progress[key] = [];
   const arr = progress[key];
-  const existing = arr.find((x) => x.c === chapter);
-  if (existing) arr.splice(arr.indexOf(existing), 1);
-  else arr.push({ c: chapter, d: getTodayStr(), t: Date.now(), v: verse || '' });
+  const v = verseKey || "";
+  const existing = arr.find((x) => x.c === chapter && (x.v || "") === v);
+
+  if (existing) {
+    removeChapterFromFirebase(testament, bookIdx, chapter, v);
+    arr.splice(arr.indexOf(existing), 1);
+  } else {
+    saveChapterToFirebase(testament, bookIdx, chapter, v);
+    arr.push({ c: chapter, d: getTodayStr(), t: Date.now(), v: v });
+  }
   arr.sort((a, b) => a.c - b.c);
-  saveProgress();
+  updateUI();
 }
 
 // 장 읽음 여부
@@ -173,22 +245,30 @@ function checkAllChapters(testament, bookIdx) {
   const key = getBookKey(testament, bookIdx);
   const today = getTodayStr();
   const now = Date.now();
-  progress[key] = Array.from({ length: book.chapters }, (_, i) => ({ c: i + 1, d: today, t: now + i }));
-  saveProgress();
+  progress[key] = Array.from({ length: book.chapters }, (_, i) => ({ c: i + 1, d: today, t: now + i, v: "" }));
+  for (let i = 1; i <= book.chapters; i++) {
+    saveChapterToFirebase(testament, bookIdx, i, "");
+  }
+  updateUI();
 }
 
 // 전체 초기화
 function uncheckAllChapters(testament, bookIdx) {
   const key = getBookKey(testament, bookIdx);
+  const arr = progress[key] || [];
+  arr.forEach((item) => {
+    removeChapterFromFirebase(testament, bookIdx, item.c, item.v || "");
+  });
   progress[key] = [];
-  saveProgress();
+  updateUI();
 }
 
 // 전체 진도 초기화
 function resetAllProgress() {
   if (confirm('모든 읽기 진도를 초기화할까요?')) {
+    db.ref(`reads/${READER_ID}`).remove();
     progress = {};
-    saveProgress();
+    updateUI();
     closeModal();
   }
 }
@@ -272,11 +352,35 @@ function openModal(testament, bookIdx) {
 
   document.getElementById('chapterModal').classList.add('active');
 
-  const verseInput = document.getElementById('verseInput');
+  // 절 선택 셀렉트 채우기 (1~176)
+  const verseStart = document.getElementById('verseStart');
+  const verseEnd = document.getElementById('verseEnd');
+  if (verseStart && verseEnd && verseStart.options.length === 0) {
+    for (let i = 1; i <= 176; i++) {
+      const opt1 = document.createElement('option');
+      opt1.value = String(i);
+      opt1.textContent = String(i);
+      verseStart.appendChild(opt1);
+
+      const opt2 = document.createElement('option');
+      opt2.value = String(i);
+      opt2.textContent = String(i);
+      verseEnd.appendChild(opt2);
+    }
+    verseEnd.value = verseStart.value;
+    verseStart.addEventListener('change', () => {
+      if (parseInt(verseStart.value, 10) > parseInt(verseEnd.value, 10)) verseEnd.value = verseStart.value;
+    });
+    verseEnd.addEventListener('change', () => {
+      if (parseInt(verseStart.value, 10) > parseInt(verseEnd.value, 10)) verseStart.value = verseEnd.value;
+    });
+  }
   grid.querySelectorAll('.chapter-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const verse = verseInput ? verseInput.value.trim() : '';
-      toggleChapter(testament, bookIdx, parseInt(btn.dataset.chapter, 10), verse);
+      const start = verseStart ? parseInt(verseStart.value, 10) : 1;
+      const end = verseEnd ? parseInt(verseEnd.value, 10) : start;
+      const verseKey = start === end ? String(start) : `${start}-${end}`;
+      toggleChapter(testament, bookIdx, parseInt(btn.dataset.chapter, 10), verseKey);
     });
   });
 
@@ -371,6 +475,7 @@ function setupDateRange() {
 
 // 초기화
 function init() {
+  initFirebase();
   loadProgress();
   renderBooks();
   updateUI();

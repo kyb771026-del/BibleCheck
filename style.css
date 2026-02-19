@@ -419,8 +419,19 @@ body {
   color: var(--text-muted);
 }
 
-.verse-input-wrap input {
-  width: 100px;
+.verse-select-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.verse-sep {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.verse-input-wrap select {
+  width: 86px;
   padding: 0.4rem 0.5rem;
   background: var(--bg-primary);
   border: 1px solid var(--border);
@@ -429,7 +440,7 @@ body {
   font-size: 0.85rem;
 }
 
-.verse-input-wrap input:focus {
+.verse-input-wrap select:focus {
   outline: none;
   border-color: var(--accent);
 }
