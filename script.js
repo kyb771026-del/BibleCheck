@@ -73,8 +73,9 @@ const BIBLE_BOOKS = {
 };
 
 const TOTAL_CHAPTERS = 1189;
-const STORAGE_KEY = 'bibleReadingProgress';
 
+// 화면을 새로고침하면 진도는 초기화되며,
+// 브라우저나 로컬 저장소에 따로 저장하지 않습니다.
 let progress = {};
 let currentBook = null;
 
@@ -83,36 +84,14 @@ function getTodayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-// 레거시 데이터 마이그레이션 (숫자 → { c, d, t } 객체)
-function migrateProgress() {
-  const today = getTodayStr();
-  const now = Date.now();
-  Object.keys(progress).forEach((key) => {
-    const arr = progress[key];
-    if (!Array.isArray(arr)) return;
-    progress[key] = arr.map((item, i) => {
-      if (typeof item === 'number') return { c: item, d: today, t: now + i };
-      if (item && typeof item.c === 'number') return { c: item.c, d: item.d || today, t: item.t || now + i };
-      return null;
-    }).filter(Boolean);
-  });
-}
-
-// 저장
+// 메모리 상의 데이터만 사용하므로 저장은 화면 갱신만 수행
 function saveProgress() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
   updateUI();
 }
 
-// 불러오기
+// 초기 로딩용 (현재는 별도 동작 없음)
 function loadProgress() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    progress = saved ? JSON.parse(saved) : {};
-    migrateProgress();
-  } catch (e) {
-    progress = {};
-  }
+  progress = {};
 }
 
 // 책 키 생성
