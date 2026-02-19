@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>성경 읽기 진도 관리</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <section class="date-range-card card-header">
+      <h2 class="card-title">📅 기간별 읽은 장 합계</h2>
+      <div class="date-range-form">
+        <div class="date-input-group">
+          <label for="startDate">시작일</label>
+          <input type="date" id="startDate" />
+        </div>
+        <span class="date-sep">~</span>
+        <div class="date-input-group">
+          <label for="endDate">종료일</label>
+          <input type="date" id="endDate" />
+        </div>
+        <button class="btn-calc" id="calcDateRangeBtn">합계 조회</button>
+      </div>
+      <div class="date-range-result" id="dateRangeResult">
+        <span class="result-label">선택 기간 내 읽은 장:</span>
+        <strong class="result-value" id="dateRangeCount">-</strong>
+        <span class="result-unit">장</span>
+      </div>
+    </section>
+
+    <section class="recent-card card-header">
+      <h2 class="card-title">📌 최근에 체크한 성경 장·절</h2>
+      <div class="recent-list" id="recentList">
+        <p class="recent-empty" id="recentEmpty">아직 체크한 장이 없습니다.</p>
+      </div>
+    </section>
+
+    <header class="card-header">
+      <h1>📖 성경 읽기 진도</h1>
+      <div class="progress-summary">
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="progress-stats">
+          <span id="progressText">0 / 1,189 장 (0%)</span>
+          <button class="btn-reset" id="resetBtn" title="진도 초기화">초기화</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="card-content">
+      <div class="filter-tabs">
+        <button class="tab active" data-filter="all">전체</button>
+        <button class="tab" data-filter="old">구약</button>
+        <button class="tab" data-filter="new">신약</button>
+      </div>
+
+      <div class="testament-section" id="oldTestament">
+        <h2>구약 (39권)</h2>
+        <div class="books-grid" id="oldBooks"></div>
+      </div>
+
+      <div class="testament-section" id="newTestament">
+        <h2>신약 (27권)</h2>
+        <div class="books-grid" id="newBooks"></div>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal" id="chapterModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">창세기</h3>
+        <button class="modal-close" id="modalClose">&times;</button>
+      </div>
+      <div class="chapter-quick">
+        <div class="verse-input-wrap">
+          <label for="verseInput">읽은 절 (선택, 예: 1-5)</label>
+          <input type="text" id="verseInput" placeholder="1-5" maxlength="20" />
+        </div>
+        <button class="btn-range" data-action="check-all">전체 읽음</button>
+        <button class="btn-range" data-action="uncheck-all">전체 초기화</button>
+      </div>
+      <div class="chapters-grid" id="chaptersGrid"></div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
