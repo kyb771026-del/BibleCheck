@@ -173,10 +173,8 @@ function toggleChapter(testament, bookIdx, chapter, verseKey) {
   const existing = arr.find((x) => x.c === chapter && (x.v || "") === v);
 
   if (existing) {
-    removeChapterFromFirebase(testament, bookIdx, chapter, v);
     arr.splice(arr.indexOf(existing), 1);
   } else {
-    saveChapterToFirebase(testament, bookIdx, chapter, v);
     arr.push({ c: chapter, d: getTodayStr(), t: Date.now(), v: v });
   }
   arr.sort((a, b) => a.c - b.c);
@@ -246,19 +244,12 @@ function checkAllChapters(testament, bookIdx) {
   const today = getTodayStr();
   const now = Date.now();
   progress[key] = Array.from({ length: book.chapters }, (_, i) => ({ c: i + 1, d: today, t: now + i, v: "" }));
-  for (let i = 1; i <= book.chapters; i++) {
-    saveChapterToFirebase(testament, bookIdx, i, "");
-  }
   updateUI();
 }
 
 // 전체 초기화
 function uncheckAllChapters(testament, bookIdx) {
   const key = getBookKey(testament, bookIdx);
-  const arr = progress[key] || [];
-  arr.forEach((item) => {
-    removeChapterFromFirebase(testament, bookIdx, item.c, item.v || "");
-  });
   progress[key] = [];
   updateUI();
 }
@@ -266,11 +257,43 @@ function uncheckAllChapters(testament, bookIdx) {
 // 전체 진도 초기화
 function resetAllProgress() {
   if (confirm('모든 읽기 진도를 초기화할까요?')) {
-    db.ref(`reads/${READER_ID}`).remove();
     progress = {};
     updateUI();
     closeModal();
   }
+}
+
+// 현재 progress 전체를 Firebase에 일괄 저장
+function saveAllToFirebase() {
+  const payload = {};
+
+  Object.keys(progress).forEach((key) => {
+    const [testament, bookIdxStr] = key.split('-');
+    const bookIdx = bookIdxStr;
+    if (!payload[testament]) payload[testament] = {};
+    if (!payload[testament][bookIdx]) payload[testament][bookIdx] = {};
+
+    (progress[key] || []).forEach((item) => {
+      const chapter = String(item.c);
+      const verseKey = item.v || "";
+      if (!payload[testament][bookIdx][chapter]) {
+        payload[testament][bookIdx][chapter] = {};
+      }
+      payload[testament][bookIdx][chapter][verseKey] = {
+        d: item.d || getTodayStr(),
+        t: item.t || Date.now(),
+      };
+    });
+  });
+
+  db.ref(`reads/${READER_ID}`).set(payload)
+    .then(() => {
+      alert('저장되었습니다.');
+    })
+    .catch((err) => {
+      console.error(err);
+      alert('저장 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    });
 }
 
 // UI 업데이트
@@ -497,6 +520,7 @@ function init() {
     if (e.target.id === 'chapterModal') closeModal();
   });
   document.getElementById('resetBtn').addEventListener('click', resetAllProgress);
+  document.getElementById('saveBtn').addEventListener('click', saveAllToFirebase);
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeModal();

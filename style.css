@@ -105,6 +105,22 @@ body {
   color: #fca5a5;
 }
 
+.btn-save {
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  color: var(--accent-light);
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-save:hover {
+  background: var(--accent);
+  color: var(--bg-primary);
+}
+
 /* Date Range Card */
 .date-range-card {
   margin-bottom: 2rem;
