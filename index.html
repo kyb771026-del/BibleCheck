@@ -3,98 +3,238 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>성경 읽기 진도 관리</title>
-  <link rel="stylesheet" href="style.css">
+  <title>성경 진도 관리 - 날짜 연동 개선</title>
+  <style>
+    :root {
+      --primary: #4a90e2; --secondary: #2ecc71; --danger: #e74c3c;
+      --bg: #f8f9fa; --card: #ffffff;
+    }
+    body { font-family: 'Pretendard', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+    .container { max-width: 800px; margin: 0 auto; }
+    .card { background: var(--card); border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+    
+    .stats-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 15px; }
+    .input-group { display: flex; flex-direction: column; gap: 5px; }
+    input[type="date"] { padding: 8px; border: 1px solid #ddd; border-radius: 6px; }
+    .result-box { background: #f0f7ff; padding: 10px 15px; border-radius: 8px; border-left: 4px solid var(--primary); margin-top: 10px; }
+
+    .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+    .btn-blue { background: var(--primary); color: white; }
+    .btn-green { background: var(--secondary); color: white; }
+    .btn-dark { background: #34495e; color: white; }
+    .btn-red { background: var(--danger); color: white; }
+    
+    .progress-bar-bg { background: #eee; height: 12px; border-radius: 6px; overflow: hidden; margin: 15px 0; }
+    .progress-fill { background: var(--primary); height: 100%; width: 0%; transition: width 0.4s; }
+
+    .books-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 8px; }
+    .book-item { padding: 10px 5px; background: #fff; border: 1px solid #dee2e6; border-radius: 6px; text-align: center; cursor: pointer; font-size: 0.85rem; }
+    .book-item:hover { border-color: var(--primary); color: var(--primary); background: #f0f7ff; }
+
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
+    .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 450px; max-height: 80vh; overflow-y: auto; }
+    .chaps-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 15px; }
+    .chap-btn { padding: 8px; border: 1px solid #eee; border-radius: 4px; background: white; cursor: pointer; }
+    .chap-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .hidden { display: none; }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <section class="date-range-card card-header">
-      <h2 class="card-title">📅 기간별 읽은 장 합계</h2>
-      <div class="date-range-form">
-        <div class="date-input-group">
-          <label for="startDate">시작일</label>
-          <input type="date" id="startDate" />
-        </div>
-        <span class="date-sep">~</span>
-        <div class="date-input-group">
-          <label for="endDate">종료일</label>
-          <input type="date" id="endDate" />
-        </div>
-        <button class="btn-calc" id="calcDateRangeBtn">합계 조회</button>
-      </div>
-      <div class="date-range-result" id="dateRangeResult">
-        <span class="result-label">선택 기간 내 읽은 장:</span>
-        <strong class="result-value" id="dateRangeCount">-</strong>
-        <span class="result-unit">장</span>
-      </div>
-    </section>
 
-    <section class="recent-card card-header">
-      <h2 class="card-title">📌 최근에 체크한 성경 장·절</h2>
-      <div class="recent-list" id="recentList">
-        <p class="recent-empty" id="recentEmpty">아직 체크한 장이 없습니다.</p>
+<div class="container">
+  <div class="card">
+    <h2 style="margin-top:0;">📅 기간별 읽은 장 조회</h2>
+    <div class="stats-row">
+      <div class="input-group">
+        <label style="font-size:0.8rem;">시작일</label>
+        <input type="date" id="startDate">
       </div>
-    </section>
-
-    <header class="card-header">
-      <h1>📖 성경 읽기 진도</h1>
-      <div class="progress-summary">
-        <div class="progress-bar-wrap">
-          <div class="progress-bar" id="progressBar"></div>
-        </div>
-        <div class="progress-stats">
-          <span id="progressText">0 / 1,189 장 (0%)</span>
-          <button class="btn-save" id="saveBtn" title="체크한 내용을 Firebase에 저장">저장</button>
-          <button class="btn-reset" id="resetBtn" title="진도 초기화">초기화</button>
-        </div>
+      <span>~</span>
+      <div class="input-group">
+        <label style="font-size:0.8rem;">종료일</label>
+        <input type="date" id="endDate">
       </div>
-    </header>
-
-    <main class="card-content">
-      <div class="filter-tabs">
-        <button class="tab active" data-filter="all">전체</button>
-        <button class="tab" data-filter="old">구약</button>
-        <button class="tab" data-filter="new">신약</button>
-      </div>
-
-      <div class="testament-section" id="oldTestament">
-        <h2>구약 (39권)</h2>
-        <div class="books-grid" id="oldBooks"></div>
-      </div>
-
-      <div class="testament-section" id="newTestament">
-        <h2>신약 (27권)</h2>
-        <div class="books-grid" id="newBooks"></div>
-      </div>
-    </main>
-  </div>
-
-  <div class="modal" id="chapterModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 id="modalTitle">창세기</h3>
-        <button class="modal-close" id="modalClose">&times;</button>
-      </div>
-      <div class="chapter-quick">
-        <div class="verse-input-wrap">
-          <label>읽은 절 선택</label>
-          <div class="verse-select-row">
-            <select id="verseStart" aria-label="시작 절"></select>
-            <span class="verse-sep">~</span>
-            <select id="verseEnd" aria-label="끝 절"></select>
-          </div>
-        </div>
-        <button class="btn-range" data-action="check-all">전체 읽음</button>
-        <button class="btn-range" data-action="uncheck-all">전체 초기화</button>
-      </div>
-      <div class="chapters-grid" id="chaptersGrid"></div>
+      <button class="btn btn-blue" onclick="calcRangeStats()">합계 조회</button>
+    </div>
+    <div class="result-box" id="rangeResult">
+      조회 결과가 여기에 표시됩니다.
     </div>
   </div>
 
-  <!-- Firebase (Realtime Database) -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <h1 style="margin:0;">📖 성경 읽기 진도</h1>
+      <div style="display:flex; gap:5px;">
+        <button class="btn btn-green" onclick="saveData()">저장</button>
+        <button class="btn btn-dark" onclick="downloadHTML()">다운로드</button>
+      </div>
+    </div>
+    
+    <div class="progress-bar-bg">
+      <div id="progressFill" class="progress-fill"></div>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <span id="progressStat" style="font-weight:bold;">0 / 1,189 장 (0%)</span>
+      <button class="btn btn-red" style="padding:5px 10px; font-size:0.7rem;" onclick="resetAll()">초기화</button>
+    </div>
 
-  <script src="script.js"></script>
+    <div style="margin-top:20px; display:flex; gap:5px;">
+      <button class="btn btn-blue" style="font-size:0.8rem;" onclick="filterList('all')">전체</button>
+      <button class="btn btn-blue" style="font-size:0.8rem;" onclick="filterList('old')">구약</button>
+      <button class="btn btn-blue" style="font-size:0.8rem;" onclick="filterList('new')">신약</button>
+    </div>
+
+    <div id="oldSection">
+      <h3>구약</h3>
+      <div id="oldGrid" class="books-grid"></div>
+    </div>
+    <div id="newSection" style="margin-top:20px;">
+      <h3>신약</h3>
+      <div id="newGrid" class="books-grid"></div>
+    </div>
+  </div>
+</div>
+
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <h3 id="modalTitle" style="margin:0;">성경명</h3>
+      <button onclick="closeModal()" style="border:none; background:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+    </div>
+    <div id="chapGrid" class="chaps-grid"></div>
+  </div>
+</div>
+
+<script>
+  // 성경 데이터 배열 (생략 없이 전체 포함)
+  const bible = [
+    {n:"창세기", c:50, t:"old"}, {n:"출애굽기", c:40, t:"old"}, {n:"레위기", c:27, t:"old"}, {n:"민수기", c:36, t:"old"}, {n:"신명기", c:34, t:"old"},
+    {n:"여호수아", c:24, t:"old"}, {n:"사사기", c:21, t:"old"}, {n:"루기", c:4, t:"old"}, {n:"사무엘상", c:31, t:"old"}, {n:"사무엘하", c:24, t:"old"},
+    {n:"열왕기상", c:22, t:"old"}, {n:"열왕기하", c:25, t:"old"}, {n:"역대상", c:29, t:"old"}, {n:"역대하", c:36, t:"old"}, {n:"에스라", c:10, t:"old"},
+    {n:"느헤미야", c:13, t:"old"}, {n:"에스더", c:10, t:"old"}, {n:"욥기", c:42, t:"old"}, {n:"시편", c:150, t:"old"}, {n:"잠언", c:31, t:"old"},
+    {n:"전도서", c:12, t:"old"}, {n:"아가", c:8, t:"old"}, {n:"이사야", c:66, t:"old"}, {n:"예레미야", c:52, t:"old"}, {n:"애가", c:5, t:"old"},
+    {n:"에스겔", c:48, t:"old"}, {n:"다니엘", c:12, t:"old"}, {n:"호세아", c:14, t:"old"}, {n:"요엘", c:3, t:"old"}, {n:"아모스", c:9, t:"old"},
+    {n:"오바댜", c:1, t:"old"}, {n:"요나", c:4, t:"old"}, {n:"미가", c:7, t:"old"}, {n:"나훔", c:3, t:"old"}, {n:"하박국", c:3, t:"old"},
+    {n:"스바냐", c:3, t:"old"}, {n:"학개", c:2, t:"old"}, {n:"스가랴", c:14, t:"old"}, {n:"말라기", c:4, t:"old"},
+    {n:"마태복음", c:28, t:"new"}, {n:"마가복음", c:16, t:"new"}, {n:"누가복음", c:24, t:"new"}, {n:"요한복음", c:21, t:"new"}, {n:"사도행전", c:28, t:"new"},
+    {n:"로마서", c:16, t:"new"}, {n:"고린도전서", c:16, t:"new"}, {n:"고린도후서", c:13, t:"new"}, {n:"갈라디아서", c:6, t:"new"}, {n:"에베소서", c:6, t:"new"},
+    {n:"빌립보서", c:4, t:"new"}, {n:"골로새서", c:4, t:"new"}, {n:"데살로니가전서", c:5, t:"new"}, {n:"데살로니가후서", c:3, t:"new"},
+    {n:"디모데전서", c:6, t:"new"}, {n:"디모데후서", c:4, t:"new"}, {n:"디도서", c:3, t:"new"}, {n:"빌레몬서", c:1, t:"new"}, {n:"히브리서", c:13, t:"new"},
+    {n:"야고보서", c:5, t:"new"}, {n:"베드로전서", c:5, t:"new"}, {n:"베드로후서", c:3, t:"new"}, {n:"요한1서", c:5, t:"new"}, {n:"요한2서", c:1, t:"new"},
+    {n:"요한3서", c:1, t:"new"}, {n:"유다서", c:1, t:"new"}, {n:"요한계시록", c:22, t:"new"}
+  ];
+
+  let progress = JSON.parse(localStorage.getItem('bible_v3')) || {};
+  let currentBook = "";
+
+  function getLocalDate() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function init() {
+    const oGrid = document.getElementById('oldGrid');
+    const nGrid = document.getElementById('newGrid');
+    bible.forEach(b => {
+      const div = document.createElement('div');
+      div.className = 'book-item';
+      div.innerText = b.n;
+      div.onclick = () => openModal(b.n);
+      if(b.t === 'old') oGrid.appendChild(div); else nGrid.appendChild(div);
+    });
+    // 오늘 날짜 기본 세팅
+    document.getElementById('startDate').value = getLocalDate();
+    document.getElementById('endDate').value = getLocalDate();
+    updateUI();
+  }
+
+  function openModal(name) {
+    currentBook = name;
+    document.getElementById('modalTitle').innerText = name;
+    const book = bible.find(b => b.n === name);
+    const grid = document.getElementById('chapGrid');
+    grid.innerHTML = '';
+    
+    for(let i=1; i<=book.c; i++) {
+      const btn = document.createElement('button');
+      btn.className = `chap-btn ${ (progress[name] && progress[name][i]) ? 'active' : '' }`;
+      btn.innerText = i;
+      btn.onclick = () => toggleChap(i, btn);
+      grid.appendChild(btn);
+    }
+    document.getElementById('modal').style.display = 'flex';
+  }
+
+  function toggleChap(chap, btn) {
+    const today = getLocalDate();
+    if(!progress[currentBook]) progress[currentBook] = {};
+    
+    if(progress[currentBook][chap]) {
+      delete progress[currentBook][chap];
+      btn.classList.remove('active');
+    } else {
+      progress[currentBook][chap] = today;
+      btn.classList.add('active');
+    }
+    updateUI();
+  }
+
+  function updateUI() {
+    let count = 0;
+    Object.values(progress).forEach(book => count += Object.keys(book).length);
+    const percent = ((count / 1189) * 100).toFixed(1);
+    document.getElementById('progressFill').style.width = percent + '%';
+    document.getElementById('progressStat').innerText = `${count.toLocaleString()} / 1,189 장 (${percent}%)`;
+  }
+
+  function calcRangeStats() {
+    const start = document.getElementById('startDate').value;
+    const end = document.getElementById('endDate').value;
+    if(!start || !end) return alert('날짜를 입력하세요.');
+    
+    let total = 0;
+    Object.values(progress).forEach(chaps => {
+      Object.values(chaps).forEach(date => {
+        if(date >= start && date <= end) total++;
+      });
+    });
+    document.getElementById('rangeResult').innerHTML = 
+      `선택 기간 동안 <strong>${total}</strong> 장을 읽으셨습니다. 👏`;
+  }
+
+  function saveData() {
+    localStorage.setItem('bible_v3', JSON.stringify(progress));
+    alert('현재 진도가 로컬 저장소에 저장되었습니다.');
+  }
+
+  function resetAll() {
+    if(confirm('모든 기록이 삭제됩니다. 초기화할까요?')) {
+      progress = {};
+      localStorage.removeItem('bible_v3');
+      location.reload();
+    }
+  }
+
+  function filterList(type) {
+    document.getElementById('oldSection').style.display = (type==='new' ? 'none' : 'block');
+    document.getElementById('newSection').style.display = (type==='old' ? 'none' : 'block');
+  }
+
+  function closeModal() { document.getElementById('modal').style.display = 'none'; }
+
+  function downloadHTML() {
+    const content = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+    const blob = new Blob([content], { type: 'text/html' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'bible_reading_progress.html';
+    a.click();
+  }
+
+  init();
+</script>
 </body>
 </html>
